@@ -12,6 +12,7 @@ import androidx.navigation.fragment.navArgs
 import com.supersapiens.jobfinder.R
 import com.supersapiens.jobfinder.databinding.FragmentJobBinding
 import com.supersapiens.jobfinder.inject.viewModelFactory
+import com.supersapiens.jobfinder.job.JobDao
 import dagger.android.support.DaggerFragment
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -24,6 +25,9 @@ class JobFragment : DaggerFragment() {
     private val args by navArgs<JobFragmentArgs>()
 
     @Inject lateinit var modelFactory: JobViewModel.Factory
+
+    @Inject lateinit var jobDao: JobDao
+
     private val model by viewModelFactory {
         modelFactory.create(args.jobId)
     }
@@ -53,6 +57,10 @@ class JobFragment : DaggerFragment() {
             it.toolbar.setOnMenuItemClickListener { item ->
                 if (item.itemId == R.id.tracking) {
                     // TODO: Toggle tracking of this job.
+
+                        lifecycleScope.launch {
+                            model.toggleTracking()
+                        }
                     true
                 } else {
                     false

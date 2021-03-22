@@ -3,6 +3,7 @@ package com.supersapiens.jobfinder.job
 import androidx.paging.DataSource
 import androidx.paging.PageKeyedDataSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import timber.log.Timber
 import javax.inject.Inject
@@ -63,6 +64,7 @@ class GitHubJobsDataSource(
         }
     }
 
+
     // Requests a single page of jobs from the API.
     private inline fun loadPage(
         page: Int,
@@ -70,6 +72,13 @@ class GitHubJobsDataSource(
     ) {
         // TODO: Fetch the requested page of jobs from the API. Gracefully
         // handle any exceptions by invalidating the data source.
-        handlePage(emptyList())
+        scope.launch {
+            try {
+                val jobs = jobsService.fetchJobs(query, page)
+                handlePage(jobs)
+            } catch (e: Exception) {
+                Timber.e(e)
+            }
+        }
     }
 }

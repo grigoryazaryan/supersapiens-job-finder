@@ -1,9 +1,6 @@
 package com.supersapiens.jobfinder.screen.joblist
 
-import androidx.lifecycle.MutableLiveData
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.switchMap
-import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.*
 import androidx.paging.PagedList
 import androidx.paging.toLiveData
 import com.supersapiens.jobfinder.job.GitHubJobsDataSource
@@ -11,6 +8,8 @@ import com.supersapiens.jobfinder.job.GitHubJobsService
 import com.supersapiens.jobfinder.job.Job
 import com.supersapiens.jobfinder.job.JobDao
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.debounce
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 // How long to wait for changes to the query string to settle down before
@@ -41,7 +40,9 @@ class JobListViewModel @Inject constructor(
      */
     // TODO: Use the current search query to create a data source
     // factory with the correct parameters.
-    val searchedJobs = MutableLiveData<String>()
+    val searchedJobs: LiveData<PagedList<Job>> = query
+        .debounce(JOB_QUERY_DEBOUNCE_TIME)
+        .asLiveData()
         .switchMap {
             GitHubJobsDataSource.Factory(jobService, it, viewModelScope)
                 .toLiveData(50)
@@ -49,7 +50,8 @@ class JobListViewModel @Inject constructor(
 
     /** A live paged list of the locally-stored tracked jobs. */
     // TODO: Fetch the tracked jobs as a paged list from the job DAO.
-    val trackedJobs = MutableLiveData<PagedList<Job>>()
+    val trackedJobs = jobDao.getTrackedDataSource()
+        .toLiveData(50)
 
     /**
      * Stop tracking a job.
@@ -58,5 +60,8 @@ class JobListViewModel @Inject constructor(
      */
     fun stopTrackingJob(job: Job) {
         // TODO: Use the job DAO to delete the job by ID.
+        viewModelScope.launch {
+            jobDao.deleteById(job.id)
+        }
     }
 }
