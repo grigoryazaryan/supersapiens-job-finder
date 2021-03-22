@@ -9,6 +9,8 @@ import com.supersapiens.jobfinder.job.GitHubJobsService
 import com.supersapiens.jobfinder.job.JobDao
 import dagger.Module
 import dagger.Provides
+import okhttp3.OkHttpClient
+import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.moshi.MoshiConverterFactory
 import javax.inject.Singleton
@@ -30,12 +32,25 @@ class AppModule {
 
     @Singleton
     @Provides
-    fun provideGitHubJobsService(): GitHubJobsService =
-        Retrofit.Builder()
-            .baseUrl(BuildConfig.JOBS_BASE_URL)
-            .addConverterFactory(MoshiConverterFactory.create())
-            .build()
-            .create(GitHubJobsService::class.java)
+    fun provideGitHubJobsService(okHttpClient: OkHttpClient): GitHubJobsService =
+            Retrofit.Builder()
+                    .client(okHttpClient)
+                    .baseUrl(BuildConfig.JOBS_BASE_URL)
+                    .addConverterFactory(MoshiConverterFactory.create())
+                    .build()
+                    .create(GitHubJobsService::class.java)
+
+    @Singleton
+    @Provides
+    fun provideOkHttpClient(): OkHttpClient {
+        val interceptor = HttpLoggingInterceptor().apply {
+            setLevel(HttpLoggingInterceptor.Level.BODY)
+        }
+
+       return OkHttpClient.Builder()
+                .addInterceptor(interceptor)
+                .build()
+    }
 
     @Singleton
     @Provides

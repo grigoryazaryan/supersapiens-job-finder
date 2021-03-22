@@ -6,6 +6,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.widget.SearchView
 import androidx.lifecycle.LiveData
+import androidx.navigation.fragment.findNavController
 import androidx.paging.PagedList
 import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.RecyclerView
@@ -21,7 +22,8 @@ import javax.inject.Provider
 class JobListFragment : DaggerFragment() {
     private lateinit var binding: FragmentJobListBinding
 
-    @Inject lateinit var modelProvider: Provider<JobListViewModel>
+    @Inject
+    lateinit var modelProvider: Provider<JobListViewModel>
     private val model by activityViewModelProvider { modelProvider }
 
     override fun onCreateView(
@@ -38,6 +40,9 @@ class JobListFragment : DaggerFragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+
+        val itemTouchHelper = ItemTouchHelper(swipeCallback)
+
         // The paged list adapter cannot resolve diffs between the
         // tracked job list and the search results list, so set up a
         // different adapter for each and swap between them depending
@@ -48,11 +53,20 @@ class JobListFragment : DaggerFragment() {
             // TODO: Swap recycler view adapters depending on whether
             // the user is searching or not. Enable swiping left on the
             // swipe callback only when displaying tracked jobs.
+
+            when (it) {
+                true -> {
+                    binding.jobs.adapter = searchedAdapter
+                    itemTouchHelper.attachToRecyclerView(null)
+                }
+                else -> {
+                    binding.jobs.adapter = trackedAdapter
+                    itemTouchHelper.attachToRecyclerView(binding.jobs)
+                }
+            }
         }
 
         binding.jobs.setHasFixedSize(true)
-
-        ItemTouchHelper(swipeCallback).attachToRecyclerView(binding.jobs)
 
         val searchView = binding.toolbar.menu
             ?.findItem(R.id.search)
@@ -76,7 +90,12 @@ class JobListFragment : DaggerFragment() {
                 }
             )
 
+            setOnSearchClickListener {
+                model.isSearching.value = true
+            }
+
             setOnCloseListener {
+                model.isSearching.value = false
                 model.query.value = ""
                 false
             }
@@ -87,6 +106,9 @@ class JobListFragment : DaggerFragment() {
     private fun createAdapter(source: LiveData<PagedList<Job>>): JobListAdapter {
         val adapter = JobListAdapter(viewLifecycleOwner) { job ->
             // TODO: Navigate to the job detail screen (JobFragment).
+            findNavController().navigate(
+                JobListFragmentDirections.actionListFragmentToJobFragment(job.id)
+            )
         }
 
         source.observe(viewLifecycleOwner) {
@@ -97,7 +119,7 @@ class JobListFragment : DaggerFragment() {
     }
 
     // Handles swipe gestures on job list items.
-    private val swipeCallback = object : ItemTouchHelper.SimpleCallback(0, 0) {
+    private val swipeCallback = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT) {
         override fun onMove(
             recyclerView: RecyclerView,
             viewHolder: RecyclerView.ViewHolder,
@@ -109,6 +131,10 @@ class JobListFragment : DaggerFragment() {
             direction: Int
         ) {
             // TODO: Stop tracking swiped jobs.
+            (viewHolder as JobListAdapter.JobViewHolder).job
+                ?.let {
+                    model.stopTrackingJob(it)
+                }
         }
     }
 }
